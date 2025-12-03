@@ -66,6 +66,66 @@ Each valid passcode leads to a unique room page featuring:
 - **Footer navigation** with mainframe return and next room options
 - **Corner indicators** displaying room details and security status
 
+## 🧭 Navigation System
+
+### **Breadcrumb Navigation**
+- **Dynamic breadcrumbs** showing current location in the facility
+- **Clickable navigation** to return to previous levels
+- **Format**: Home > Level X > Room XXX
+- **Responsive design** adapts to mobile and desktop layouts
+
+### **Room Visit Tracking**
+- **Browser state management** tracks visited rooms (not localStorage)
+- **Completion percentage** shows exploration progress
+- **Visual indicators** mark visited vs unvisited rooms
+- **Mission dashboard** displays progress on home page
+
+### **Navigation Context**
+- **React Context** manages global navigation state
+- **Visit history** tracks all explored rooms
+- **Current room tracking** maintains active location
+- **Completion metrics** calculates exploration progress
+
+## 🚀 Performance & SEO Optimizations
+
+The website is optimized for performance and SEO with enterprise-level features:
+
+### **Next.js Advanced Optimizations**
+- **ISR (Incremental Static Regeneration)**: Room pages pre-generated for instant loading
+- **Image Optimization**: Next.js Image component with WebP/AVIF, responsive sizing
+- **Code Splitting**: Automatic route-based, component, and framework splitting
+- **Font Optimization**: Google Fonts with display swap and preloading
+- **Bundle Analysis**: Webpack bundle analyzer (`npm run analyze`)
+- **Critical CSS**: Above-the-fold styles inlined for faster rendering
+
+### **SEO & Social Features**
+- **Dynamic Meta Tags**: Page-specific Open Graph and Twitter Cards
+- **OG Image API**: Server-side generated social media images (`/api/og`)
+- **Sitemap**: Automatic sitemap generation with priorities
+- **Robots.txt**: SEO-friendly crawler directives
+- **Structured Data**: JSON-LD schema markup support
+- **Canonical URLs**: Proper URL canonicalization
+
+### **Performance Features**
+- **Lazy Loading**: Dynamic imports for non-critical components
+- **Caching Strategy**: Aggressive caching with proper headers
+- **Compression**: Gzip/Brotli compression enabled
+- **Bundle Optimization**: Tree shaking and dead code elimination
+- **Resource Hints**: Preload, prefetch, and DNS prefetching
+- **Service Worker**: PWA capabilities with offline support
+
+### **Security Headers**
+- **CSP**: Content Security Policy implementation
+- **HSTS**: HTTP Strict Transport Security
+- **X-Frame-Options**: Clickjacking protection
+- **X-Content-Type-Options**: MIME type sniffing prevention
+
+### **Monitoring & Analytics**
+- **Performance Monitoring**: Lighthouse CI integration (`npm run lighthouse`)
+- **Bundle Analysis**: Webpack bundle analyzer reports
+- **Error Tracking**: Comprehensive error boundary system
+- **Core Web Vitals**: Optimized for Google's metrics
+
 ## 📱 Responsive Design
 
 The website is fully responsive and optimized for all screen sizes:
@@ -108,6 +168,34 @@ The room pages include advanced image loading with:
 - **Status Indicators**: Real-time loading status ("STATUS: LOADING...", "STATUS: IMAGE LOADED ✓")
 - **Performance Priority**: High-priority loading for above-the-fold images
 - **Scan Line Effects**: Terminal aesthetic overlay on loaded images
+
+## 🚨 Error Handling System
+
+Comprehensive error handling throughout the application:
+
+### **Passcode Validation Errors**
+- **Format Validation**: Detailed checks for level number, department code, and room number
+- **Specific Error Messages**: Clear guidance on what went wrong and how to fix it
+- **Visual Feedback**: Color-coded borders and background highlights
+- **Input Clearing**: Automatic clearing of invalid passcodes
+
+### **Image Loading Errors**
+- **Network Error Handling**: Graceful fallbacks for connection issues
+- **Missing Image Detection**: User-friendly messages for unavailable images
+- **File Path Display**: Shows expected filename for debugging
+- **Retry Suggestions**: Instructions for users on how to resolve issues
+
+### **System Error Boundary**
+- **React Error Boundary**: Catches unexpected JavaScript errors
+- **Graceful Degradation**: Fallback UI prevents app crashes
+- **Error Logging**: Console logging for debugging
+- **Recovery Options**: Restart and navigation options
+
+### **Success Feedback**
+- **Loading States**: Visual indicators during async operations
+- **Success Messages**: Confirmation messages for successful actions
+- **Progress Indicators**: Real-time feedback during passcode validation
+- **Animation Effects**: Smooth transitions and state changes
 
 ## ✨ Advanced Visual Effects
 
@@ -225,6 +313,143 @@ interface RoomMapping {
 - `getRoomMapping(currentCode)` - Get mapping details
 - `isValidRoomCode(code)` - Validate room code exists
 - `isFinalRoom(code)` - Check if room is final destination
+
+## 🚀 Deployment Guide
+
+### **Prerequisites**
+- Node.js 18.x or later
+- npm or yarn
+- Vercel account (for deployment)
+
+### **Local Development Setup**
+
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd mystery-exe
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Variables:**
+   Create a `.env.local` file in the root directory:
+   ```bash
+   # Copy from .env.example and fill in your values
+   cp .env.example .env.local
+   ```
+
+4. **Run development server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### **Build Testing**
+
+Before deploying, test the build process:
+
+```bash
+# Test production build
+npm run build
+
+# Analyze bundle size
+npm run analyze
+
+# Test with profiling
+npm run build:profile
+```
+
+### **Vercel Deployment**
+
+#### **Option 1: Vercel CLI**
+1. **Install Vercel CLI:**
+   ```bash
+   npm i -g vercel
+   ```
+
+2. **Deploy:**
+   ```bash
+   vercel
+   ```
+
+3. **Follow the prompts** to configure your project.
+
+#### **Option 2: Vercel Dashboard**
+1. **Connect Repository:**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "New Project"
+   - Import your Git repository
+
+2. **Configure Build Settings:**
+   - **Framework Preset:** Next.js
+   - **Root Directory:** `./` (leave default)
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `.next` (automatic)
+
+3. **Environment Variables:**
+   Set the following in Project Settings > Environment Variables:
+   ```
+   NODE_ENV=production
+   NEXT_PUBLIC_APP_URL=https://your-project-name.vercel.app
+   ```
+
+4. **Deploy:**
+   - Click "Deploy"
+   - Wait for build completion
+   - Your site will be live at `https://your-project-name.vercel.app`
+
+### **Post-Deployment Configuration**
+
+#### **Custom Domain (Optional)**
+1. Go to Project Settings > Domains
+2. Add your custom domain
+3. Configure DNS records as instructed
+
+#### **Environment Variables**
+Set production environment variables in Vercel dashboard:
+- Analytics keys
+- API endpoints
+- Security keys
+
+#### **Monitoring**
+- Enable Vercel Analytics in project settings
+- Set up error monitoring
+- Configure performance monitoring
+
+### **Adding Clue Images**
+
+1. **Place images** in the `public/clues/` directory
+2. **Naming convention:** `{passcode}.jpg` (e.g., `1EC210.jpg`)
+3. **Supported formats:** JPG, PNG, WebP
+4. **Recommended size:** 1200x800px or larger
+5. **Commit and push** to trigger redeployment
+
+### **Troubleshooting**
+
+#### **Build Failures**
+- Check console output for specific errors
+- Ensure all imports are correct
+- Verify environment variables are set
+
+#### **Image Loading Issues**
+- Confirm images are in `public/clues/` directory
+- Check file naming matches passcodes
+- Verify image formats are supported
+
+#### **Performance Issues**
+- Run `npm run analyze` to check bundle size
+- Optimize images before uploading
+- Enable Vercel Analytics for monitoring
+
+### **Continuous Deployment**
+
+The project is configured for automatic deployments:
+- Push to main branch triggers deployment
+- Pull requests get preview deployments
+- Failed builds block merges
 
 ## 📁 Project Structure
 

@@ -1,95 +1,45 @@
-import { Metadata } from 'next'
-import { notFound } from 'next/navigation'
-import RoomPageClient from './RoomPageClient'
+'use client'
 
-// Generate static params for all rooms (ISR)
-export async function generateStaticParams() {
-  return [
-    { passcode: '1EC210' },
-    { passcode: '1EC211' },
-    { passcode: '1EC205' },
-    { passcode: '1EC204' },
-    { passcode: '2EC212' },
-    { passcode: '2EC213' },
-    { passcode: '2EC203' },
-    { passcode: '2EC202' },
-    { passcode: '3FINAL01' },
-    { passcode: '3FINAL02' },
-    { passcode: '3FINAL03' },
-    { passcode: '3FINAL04' },
-  ]
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import Image from 'next/image'
+import { getRoomByCode, getRoomMapping, getNextRoom, isFinalRoom } from '@/constants/roomConfig'
+import { useNavigation } from '@/contexts/NavigationContext'
+import { Breadcrumb } from '@/components/Breadcrumb'
+
+interface RoomPageClientProps {
+  passcode: string
 }
 
-// Generate metadata for each room
-export async function generateMetadata({ params }: { params: { passcode: string } }): Promise<Metadata> {
-  const { getRoomByCode } = await import('@/constants/roomConfig')
-  const room = getRoomByCode(params.passcode)
-
-  if (!room) {
-    return {
-      title: 'Room Not Found - Mystery.exe',
-      description: 'The requested room could not be found.',
-    }
-  }
-
-  return {
-    title: `${room.name} - Mystery.exe`,
-    description: `Explore ${room.name} in the Mystery.exe facility. ${room.description} Level ${room.level} security clearance required.`,
-    keywords: ['mystery', 'room', room.name.toLowerCase(), `level ${room.level}`, room.theme?.toLowerCase()].filter(Boolean),
-    openGraph: {
-      title: `${room.name} - Mystery.exe`,
-      description: room.description,
-      type: 'website',
-      images: [
-        {
-          url: `/api/og?room=${params.passcode}`,
-          width: 1200,
-          height: 630,
-          alt: `${room.name} - Mystery.exe`,
-        },
-      ],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: `${room.name} - Mystery.exe`,
-      description: room.description,
-      images: [`/api/og?room=${params.passcode}`],
-    },
-    robots: {
-      index: false, // Don't index individual rooms for SEO (they require passcodes)
-      follow: false,
-    },
-  }
-}
-
-// Server component that handles routing and validation
-export default function RoomPage({ params }: { params: { passcode: string } }) {
-  const { getRoomByCode } = require('@/constants/roomConfig')
-  const room = getRoomByCode(params.passcode)
-
-  // If room doesn't exist, return 404
-  if (!room) {
-    notFound()
-  }
-
-  return <RoomPageClient passcode={params.passcode} />
-}
-
-// Room data is now centralized in roomConfig.ts
-
-export default function Room() {
-  const searchParams = useSearchParams()
+export default function RoomPageClient({ passcode }: RoomPageClientProps) {
   const router = useRouter()
   const { setCurrentRoom } = useNavigation()
-  const [isLoading, setIsLoading] = useState(true)
-  const [roomData, setRoomData] = useState<any>(null)
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
   const [copySuccess, setCopySuccess] = useState(false)
 
+  // Get room data
+  const roomData = getRoomByCode(passcode)
+
+  // If room data is not available, redirect (fallback)
+  useEffect(() => {
+    if (!roomData) {
+      router.push('/')
+      return
+    }
+
+    setCurrentRoom(passcode)
+    setImageLoading(true)
+    setImageError(false)
+  }, [passcode, roomData, router, setCurrentRoom])
+
+  if (!roomData) {
+    return null
+  }
+
   // Function to construct image path from passcode
-  const getImagePath = (passcode: string): string => {
-    return `/clues/${passcode}.jpg`
+  const getImagePath = (code: string): string => {
+    return `/clues/${code}.jpg`
   }
 
   // Function to handle image loading
@@ -100,74 +50,41 @@ export default function Room() {
 
   // Function to handle image error
   const handleImageError = () => {
+    console.warn(`Failed to load image: ${getImagePath(passcode)}`)
     setImageLoading(false)
     setImageError(true)
   }
 
-  // Function to handle network errors and retries
-  const handleImageLoadError = (error: any) => {
-    console.error('Image loading error:', error)
-    // Could implement retry logic here if needed
-    setImageError(true)
-    setImageLoading(false)
-  }
+  // Function to handle passcode copying
+  const handleCopyPasscode = async (code: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(code)
+        setCopySuccess(true)
+        setTimeout(() => setCopySuccess(false), 2000)
+      } else {
+        const textArea = document.createElement('textarea')
+        textArea.value = code
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        textArea.style.top = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        const successful = document.execCommand('copy')
+        document.body.removeChild(textArea)
 
-  const passcode = searchParams.get('passcode')
-
-  useEffect(() => {
-    const loadRoom = async () => {
-      try {
-        if (!passcode) {
-          console.error('No passcode provided')
-          router.push('/')
-          return
+        if (successful) {
+          setCopySuccess(true)
+          setTimeout(() => setCopySuccess(false), 2000)
         }
-
-        // Validate passcode on client side as well
-        const passcodeRegex = /^[123][A-Z]{2,5}\d{2,3}$/
-        if (!passcodeRegex.test(passcode)) {
-          console.error('Invalid passcode format:', passcode)
-          router.push('/')
-          return
-        }
-
-        const data = getRoomByCode(passcode)
-        if (!data) {
-          console.error('Room not found for passcode:', passcode)
-          router.push('/')
-          return
-        }
-
-        setRoomData(data)
-        setCurrentRoom(passcode) // Update navigation context
-        setIsLoading(false)
-        // Reset image states when room changes
-        setImageLoading(true)
-        setImageError(false)
-      } catch (error) {
-        console.error('Error loading room:', error)
-        // Show error state or redirect
-        router.push('/')
       }
+    } catch (err) {
+      console.error('Failed to copy passcode:', err)
     }
-
-    loadRoom()
-  }, [passcode, router, setCurrentRoom])
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black text-green-400 font-mono flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="animate-pulse text-xl sm:text-2xl mb-4">ACCESSING ROOM...</div>
-          <div className="animate-spin w-8 h-8 border-2 border-green-400 border-t-transparent rounded-full mx-auto"></div>
-        </div>
-      </div>
-    )
   }
 
-  if (!roomData) {
-    return null
-  }
+  const nextRoom = getNextRoom(passcode)
 
   return (
     <div className="min-h-screen bg-black text-green-400 font-mono relative overflow-hidden fade-in">
@@ -255,10 +172,7 @@ export default function Room() {
                     fill
                     className="object-cover rounded-lg"
                     onLoad={handleImageLoad}
-                    onError={() => {
-                      console.warn(`Failed to load image: ${getImagePath(passcode)}`)
-                      handleImageError()
-                    }}
+                    onError={handleImageError}
                     priority
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
                   />
@@ -275,13 +189,13 @@ export default function Room() {
               {/* Image controls */}
               <div className="mt-4 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
                 <button
-                  className="bg-green-400 hover:bg-green-300 text-black font-bold py-3 px-4 sm:py-2 sm:px-6 rounded font-mono text-sm transition-all duration-200 hover-lift disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] sm:min-h-[40px] neon-glow"
+                  className="bg-green-400 hover:bg-green-300 text-black font-bold py-3 px-4 sm:py-2 sm:px-6 rounded font-mono text-sm transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] sm:min-h-[40px] neon-glow"
                   disabled={imageLoading || imageError}
                 >
                   [ ANALYZE CLUE ]
                 </button>
                 <button
-                  className="bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-3 px-4 sm:py-2 sm:px-6 rounded font-mono text-sm transition-all duration-200 hover-lift disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] sm:min-h-[40px] neon-glow"
+                  className="bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-3 px-4 sm:py-2 sm:px-6 rounded font-mono text-sm transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] sm:min-h-[40px] neon-glow"
                   disabled={imageLoading || imageError}
                 >
                   [ SAVE IMAGE ]
@@ -315,44 +229,9 @@ export default function Room() {
 
               {/* Next Passcode Display - Only show if there's a next room */}
               {(() => {
-                const nextRoom = getNextRoom(passcode);
                 if (nextRoom && !isFinalRoom(passcode)) {
-                  const handleCopyPasscode = async () => {
-                    try {
-                      if (navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(nextRoom);
-                        setCopySuccess(true);
-                        setTimeout(() => setCopySuccess(false), 2000);
-                      } else {
-                        // Fallback for browsers that don't support clipboard API
-                        const textArea = document.createElement('textarea');
-                        textArea.value = nextRoom;
-                        textArea.style.position = 'fixed';
-                        textArea.style.left = '-999999px';
-                        textArea.style.top = '-999999px';
-                        document.body.appendChild(textArea);
-                        textArea.focus();
-                        textArea.select();
-                        const successful = document.execCommand('copy');
-                        document.body.removeChild(textArea);
-
-                        if (successful) {
-                          setCopySuccess(true);
-                          setTimeout(() => setCopySuccess(false), 2000);
-                        } else {
-                          console.warn('Copy command was unsuccessful');
-                          // Could show a tooltip to manually copy
-                        }
-                      }
-                    } catch (err) {
-                      console.error('Failed to copy passcode:', err);
-                      // Could show a user-friendly error message here
-                      // For now, we'll just log it since the fallback should work
-                    }
-                  };
-
                   return (
-                    <div className="mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-r from-yellow-400/10 to-orange-400/10 border-2 border-yellow-400/60 rounded-lg shadow-lg neon-glow">
+                    <div className="mb-6 p-4 sm:p-6 bg-gradient-to-r from-yellow-400/10 to-orange-400/10 border-2 border-yellow-400/60 rounded-lg shadow-lg neon-glow">
                       <div className="text-center">
                         <div className="text-yellow-400 font-mono text-xs sm:text-sm mb-2 sm:mb-3 animate-pulse flex items-center justify-center">
                           <span className="mr-1 sm:mr-2">🔑</span>
@@ -361,7 +240,7 @@ export default function Room() {
                         </div>
                         <div
                           className="text-yellow-400 font-mono text-2xl sm:text-3xl lg:text-4xl font-bold tracking-widest cursor-pointer select-all hover:bg-yellow-400/20 p-3 sm:p-4 rounded-lg transition-all duration-200 border border-yellow-400/30 hover:border-yellow-400/60 hover-glow"
-                          onClick={handleCopyPasscode}
+                          onClick={() => handleCopyPasscode(nextRoom)}
                           title="Click to copy passcode"
                         >
                           {nextRoom}
@@ -379,111 +258,76 @@ export default function Room() {
                         </div>
                       </div>
                     </div>
-                  );
+                  )
                 }
-                return null;
+                return null
               })()}
 
-              <div className="space-y-4">
-                {(() => {
-                  const clueMapping = getRoomMapping(passcode);
-                  const nextRoom = getNextRoom(passcode);
-                  const isFinal = isFinalRoom(passcode);
-
-                  if (isFinal) {
-                    // roomData is already available from the component state
-                    return (
-                      <div className="text-center">
-                        <div className="text-yellow-400 font-mono text-lg mb-2">
-                          🎯 FINAL DESTINATION REACHED
-                        </div>
-                        <div className="text-green-400 font-mono text-sm">
-                          {roomData.name}
-                        </div>
-                        <div className="text-green-400/70 font-mono text-xs mt-2">
-                          {roomData.description}
-                        </div>
-                        <div className="text-red-400 font-mono text-xs mt-4 animate-pulse">
-                          CLEARANCE: {roomData.clearance}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  if (clueMapping && nextRoom) {
-                    const nextRoomData = getRoomByCode(nextRoom);
-                    const isNextRoomFinal = isFinalRoom(nextRoom);
-
-                    return (
-                      <div className="space-y-4">
-                        {/* Current Location */}
-                        <div className="text-center border-b border-green-400/30 pb-3">
-                          <div className="text-green-400 font-mono text-sm mb-1">
-                            CURRENT LOCATION
-                          </div>
-                          <div className="text-white font-mono text-base">
-                            {roomData.department} {roomData.room} - {roomData.name}
-                          </div>
-                        </div>
-
-                        {/* Clue Destination */}
-                        <div className="text-center">
-                          <div className="text-cyan-400 font-mono text-sm mb-2 animate-pulse">
-                            CLUE DESTINATION
-                          </div>
-                          <div className="text-green-400 font-mono text-lg">
-                            {isNextRoomFinal ? nextRoomData.name : `${nextRoom.replace(/(\d)([A-Z]{2,5})(\d{2,3})/, '$2 $3')} - Level ${nextRoom.charAt(0)}`}
-                          </div>
-                          <div className="text-green-400/70 font-mono text-sm mt-1">
-                            {isNextRoomFinal ? nextRoomData.description : `Advanced ${nextRoom.charAt(0) === '2' ? 'Level 2' : 'Theme'} Facility`}
-                          </div>
-                        </div>
-
-                        {/* Navigation Hint */}
-                        <div className="text-center border-t border-green-400/30 pt-3">
-                          <div className="text-cyan-400/70 font-mono text-xs mb-2">
-                            NAVIGATION HINT
-                          </div>
-                          <div className="text-green-400 font-mono text-sm italic bg-green-400/5 p-3 rounded">
-                            "{clueMapping.hint}"
-                          </div>
-                        </div>
-
-                        {/* Action Button */}
-                        <div className="text-center pt-2">
-                          <button
-                            onClick={() => router.push(`/room?passcode=${nextRoom}`)}
-                            className="bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-3 px-8 rounded font-mono text-sm transition-all duration-200 hover-lift min-h-[44px] neon-glow"
-                          >
-                            [ FOLLOW THE CLUE ]
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
+              {(() => {
+                const clueMapping = getRoomMapping(passcode)
+                if (clueMapping && nextRoom) {
+                  const nextRoomData = getRoomByCode(nextRoom)
+                  const isNextRoomFinal = isFinalRoom(nextRoom)
 
                   return (
-                    <div className="text-center">
-                      <div className="text-yellow-400 font-mono text-lg animate-pulse">
-                        NO CLUE MAPPING FOUND
+                    <div className="space-y-4">
+                      {/* Current Location */}
+                      <div className="text-center border-b border-green-400/30 pb-3">
+                        <div className="text-green-400 font-mono text-sm mb-1">
+                          CURRENT LOCATION
+                        </div>
+                        <div className="text-white font-mono text-base">
+                          {roomData.department} {roomData.room} - {roomData.name}
+                        </div>
                       </div>
-                      <div className="text-green-400/70 font-mono text-sm mt-2">
-                        This room may be an endpoint or mapping data is unavailable.
+
+                      {/* Clue Destination */}
+                      <div className="text-center">
+                        <div className="text-cyan-400 font-mono text-sm mb-2 animate-pulse">
+                          CLUE DESTINATION
+                        </div>
+                        <div className="text-green-400 font-mono text-lg">
+                          {isNextRoomFinal ? nextRoomData?.name : `${nextRoom.replace(/(\d)([A-Z]{2,5})(\d{2,3})/, '$2 $3')} - Level ${nextRoom.charAt(0)}`}
+                        </div>
+                        <div className="text-green-400/70 font-mono text-sm mt-1">
+                          {isNextRoomFinal ? nextRoomData?.description : `Advanced ${nextRoom.charAt(0) === '2' ? 'Level 2' : 'Theme'} Facility`}
+                        </div>
+                      </div>
+
+                      {/* Navigation Hint */}
+                      <div className="text-center border-t border-green-400/30 pt-3">
+                        <div className="text-cyan-400/70 font-mono text-xs mb-2">
+                          NAVIGATION HINT
+                        </div>
+                        <div className="text-green-400 font-mono text-sm italic bg-green-400/5 p-3 rounded">
+                          "{clueMapping.hint}"
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="text-center pt-2">
+                        <button
+                          onClick={() => router.push(`/room?passcode=${nextRoom}`)}
+                          className="bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-3 px-8 rounded font-mono text-sm transition-all duration-200 hover-lift min-h-[44px] neon-glow"
+                        >
+                          [ FOLLOW THE CLUE ]
+                        </button>
                       </div>
                     </div>
-                  );
-                })()}
-              </div>
-            </div>
+                  )
+                }
 
-            {/* Status and info panel */}
-            <div className="bg-gray-900/80 backdrop-blur-sm border border-green-400/50 rounded-lg p-6">
-              <div className="text-center">
-                <div className="text-green-400 font-mono text-sm mb-2">$ status --room</div>
-                <div className="text-cyan-400 font-mono text-lg animate-pulse">
-                  {roomData.status}
-                </div>
-              </div>
+                return (
+                  <div className="text-center">
+                    <div className="text-yellow-400 font-mono text-lg animate-pulse">
+                      NO CLUE MAPPING FOUND
+                    </div>
+                    <div className="text-green-400/70 font-mono text-sm mt-2">
+                      This room may be an endpoint or mapping data is unavailable.
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </main>

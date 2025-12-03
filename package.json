@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "analyze": "ANALYZE=true next build",
+    "build:profile": "next build --profile",
+    "lighthouse": "lhci autorun"
   },
   "dependencies": {
     "next": "14.2.8",
